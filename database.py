@@ -38,6 +38,7 @@ class HistoDatabase(object):
         print("Loading index meta...")
         with open(self.index_meta_path, 'rb') as handle:
             self.meta = pickle.load(handle)
+        self.meta_clean = copy.deepcopy(self.meta)
 
         print("Loading semantic codebook")
         self.codebook_semantic = torch.load(codebook_semantic)
@@ -61,11 +62,13 @@ class HistoDatabase(object):
                 else:
                     # Leave-one-patient out in TCGA cohort
                     patient_id = slide_id.split("-")[2]
-                    self.patient_id2meta_pos[patient_id] = []
+                    self.patient_id2meta_pos[patient_id] = {}
                     for key, val in self.meta.items():
                         for idx in range(len(val)):
                             if val[idx]['slide_name'].split("-")[2] == patient_id:
-                                self.patient_id2meta_pos[patient_id].append((key, val))
+                                if key not in self.patient_id2meta_pos[patient_id].keys():
+                                    self.patient_id2meta_pos[patient_id][key] = []
+                                self.patient_id2meta_pos[patient_id][key].append(idx)
             with open(index_patient_pos_save_path, 'wb') as handle:
                 pickle.dump(self.patient_id2meta_pos, handle)
 
@@ -73,9 +76,17 @@ class HistoDatabase(object):
         if self.is_patch:
             self.meta_clean = self.meta
         else:
-            self.meta_clean = copy.deepcopy(self.meta)
-            for (key, val) in self.patient_id2meta_pos[patient_id]:
-                self.meta_clean[key].remove(val)
+            # self.meta_clean = copy.deepcopy(self.meta)
+            for (key, idxs) in self.patient_id2meta_pos[patient_id].items():
+                self.meta_clean[key] = [self.meta[key][idx] for idx in range(len(self.meta[key])) if idx not in idxs]
+    
+    def leave_one_patient_fast_recov(self, patient_id):
+        if self.is_patch:
+            pass
+        else:
+            for key in self.patient_id2meta_pos[patient_id].keys():
+                self.meta_clean[key] = self.meta[key]
+        assert self.meta_clean == self.meta
 
     def leave_one_patient(self, patient_id):
         """

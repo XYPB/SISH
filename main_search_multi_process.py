@@ -21,7 +21,7 @@ def run(pid, latent_path_list):
     results = {}
     pbar = tqdm(latent_path_list)
     for cnt, latent_path in enumerate(pbar):
-        if cnt == 20:
+        if cnt == 1:
             break
         resolution = latent_path.split("/")[-3]
         diagnosis = latent_path.split("/")[-4]
@@ -69,8 +69,12 @@ def run(pid, latent_path_list):
             results[key]['label_query'] = anatomic_site
         else:
             results[key]['label_query'] = diagnosis
+        
+        # recover meta
+        db.leave_one_patient_fast_recov(patient_id)
     time_queue.put(t_total)
     result_queue.put(results)
+    return
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Search for WSI query in the database")
