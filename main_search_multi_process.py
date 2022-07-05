@@ -20,7 +20,9 @@ def run(pid, latent_path_list):
     t_total = 0
     results = {}
     pbar = tqdm(latent_path_list)
-    for latent_path in pbar:
+    for cnt, latent_path in enumerate(pbar):
+        if cnt == 20:
+            break
         resolution = latent_path.split("/")[-3]
         diagnosis = latent_path.split("/")[-4]
         anatomic_site = latent_path.split("/")[-5]
@@ -35,8 +37,10 @@ def run(pid, latent_path_list):
         else:
             # Leave-one-patient out in TCGA cohort
             patient_id = slide_id.split("-")[2]
-            # TODO: reduce time here
-            db.leave_one_patient(patient_id)
+            t_s = time.time()
+            # db.leave_one_patient(patient_id)
+            db.leave_one_patient_fast(patient_id)
+            t_clean = time.time() - t_s
 
         slide_path = os.path.join(args.slide_path, anatomic_site, diagnosis, 
                                 resolution, slide_id + ".svs")
@@ -56,7 +60,7 @@ def run(pid, latent_path_list):
         with open(os.path.join(speed_record_path, "speed_log.txt"), 'a') as fw:
             fw.write(slide_id + ", " + str(t_elapse) + "\n")
         t_total += t_elapse
-        pbar.set_description_str(f'PID: {pid}, time: {t_elapse}, ')
+        pbar.set_description_str(f'PID: {pid}, time: {t_elapse:.2f}, time_clean: {t_clean:.2f}')
 
         key = slide_id
         results[key] = {'results': None, 'label_query': None}
@@ -80,6 +84,8 @@ if __name__ == "__main__":
                         help="Path to the veb tree that stores all indices")
     parser.add_argument("--index_meta_path", type=str, required=True, 
                         help="Path to the meta data of each index")
+    parser.add_argument("--index_patient_pos_path", type=str, required=True, 
+                        help="Path to the patient feature position in the meta")
     parser.add_argument("--num_workers", type=int, default=8,
                         help="number of process to run the search")
     parser.add_argument("--codebook_semantic", type=str, default="./checkpoints/codebook_semantic.pt", 
@@ -107,6 +113,8 @@ if __name__ == "__main__":
     db = HistoDatabase(database_index_path=args.db_index_path, 
                        index_meta_path=args.index_meta_path, 
                        codebook_semantic=args.codebook_semantic)
+
+    db.preprocess_leave_one_patient(args.index_patient_pos_path, glob.glob(latent_all))
 
     time_queue = multiprocessing.Queue()
     result_queue = multiprocessing.Queue()

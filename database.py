@@ -1,7 +1,9 @@
 import pickle
 import torch
+from tqdm import tqdm
 import copy
 import numpy as np
+import os
 
 
 class HistoDatabase(object):
@@ -42,6 +44,38 @@ class HistoDatabase(object):
         self.pool_layers = [torch.nn.AvgPool2d(kernel_size=(2, 2)),
                             torch.nn.AvgPool2d(kernel_size=(2, 2)),
                             torch.nn.AvgPool2d(kernel_size=(2, 2))]
+
+    def preprocess_leave_one_patient(self, index_patient_pos_save_path, latent_path_list=None):
+        if os.path.exists(index_patient_pos_save_path):
+            with open(index_patient_pos_save_path, 'rb') as handle:
+                self.patient_id2meta_pos = pickle.load(handle)
+        else:
+            # create a map from patient id to position in meta
+            assert latent_path_list is not None
+            self.patient_id2meta_pos = {} 
+            for latent_path in tqdm(latent_path_list):
+                slide_id = os.path.basename(latent_path).replace(".h5", "")
+                if not slide_id.startswith('TCGA'):
+                    # Implementation of your own leave-one out strategy to fit your data
+                    continue
+                else:
+                    # Leave-one-patient out in TCGA cohort
+                    patient_id = slide_id.split("-")[2]
+                    self.patient_id2meta_pos[patient_id] = []
+                    for key, val in self.meta.items():
+                        for idx in range(len(val)):
+                            if val[idx]['slide_name'].split("-")[2] == patient_id:
+                                self.patient_id2meta_pos[patient_id].append((key, val))
+            with open(index_patient_pos_save_path, 'wb') as handle:
+                pickle.dump(self.patient_id2meta_pos, handle)
+
+    def leave_one_patient_fast(self, patient_id):
+        if self.is_patch:
+            self.meta_clean = self.meta
+        else:
+            self.meta_clean = copy.deepcopy(self.meta)
+            for (key, val) in self.patient_id2meta_pos[patient_id]:
+                self.meta_clean[key].remove(val)
 
     def leave_one_patient(self, patient_id):
         """
