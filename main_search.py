@@ -46,6 +46,7 @@ if __name__ == "__main__":
         if not os.path.exists(speed_record_path):
             os.makedirs(speed_record_path)
 
+    print(args.db_index_path)
     db = HistoDatabase(database_index_path=args.db_index_path,
                        index_meta_path=args.index_meta_path,
                        codebook_semantic=args.codebook_semantic)
