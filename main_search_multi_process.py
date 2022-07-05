@@ -8,7 +8,7 @@ import glob
 from database import HistoDatabase
 from tqdm import tqdm
 
-from multiprocessing import Process
+from multiprocessing import Manager, Process
 
 # Slides which are in poor quality
 IGNORE_SLIDES = ['TCGA-C5-A8YT-01Z-00-DX1.5609D977-4B7E-4B49-A3FB-50434D6E49F9', 
@@ -16,13 +16,11 @@ IGNORE_SLIDES = ['TCGA-C5-A8YT-01Z-00-DX1.5609D977-4B7E-4B49-A3FB-50434D6E49F9',
                  'C3N-02678-21']
 
 
-def run(pid, latent_path_list):
-    t_total = 0
-    results = {}
+def run(pid, latent_path_list, t_total, results):
     pbar = tqdm(latent_path_list)
+    t_total_local = 0
+    results_local = {}
     for cnt, latent_path in enumerate(pbar):
-        if cnt == 1:
-            break
         resolution = latent_path.split("/")[-3]
         diagnosis = latent_path.split("/")[-4]
         anatomic_site = latent_path.split("/")[-5]
@@ -59,22 +57,21 @@ def run(pid, latent_path_list):
         t_elapse = time.time() - t_start
         with open(os.path.join(speed_record_path, "speed_log.txt"), 'a') as fw:
             fw.write(slide_id + ", " + str(t_elapse) + "\n")
-        t_total += t_elapse
+        t_total_local += t_elapse
         pbar.set_description_str(f'PID: {pid}, time: {t_elapse:.2f}, time_clean: {t_clean:.2f}')
 
         key = slide_id
-        results[key] = {'results': None, 'label_query': None}
-        results[key]['results'] = tmp_res
+        results_local[key] = {'results': None, 'label_query': None}
+        results_local[key]['results'] = tmp_res
         if args.site == 'organ':
-            results[key]['label_query'] = anatomic_site
+            results_local[key]['label_query'] = anatomic_site
         else:
-            results[key]['label_query'] = diagnosis
+            results_local[key]['label_query'] = diagnosis
         
         # recover meta
         db.leave_one_patient_fast_recov(patient_id)
-    time_queue.put(t_total)
-    result_queue.put(results)
-    return
+    results.update(results_local)
+    t_total.value += t_total_local
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Search for WSI query in the database")
@@ -120,8 +117,9 @@ if __name__ == "__main__":
 
     db.preprocess_leave_one_patient(args.index_patient_pos_path, glob.glob(latent_all))
 
-    time_queue = multiprocessing.Queue()
-    result_queue = multiprocessing.Queue()
+    t_total = multiprocessing.Value('f', 0)
+    manager = multiprocessing.Manager()
+    results = manager.dict()
 
     list_latent_path_sub = [[] for _ in range(args.num_workers)]
     for i, latent_path in enumerate(glob.glob(latent_all)):
@@ -129,20 +127,15 @@ if __name__ == "__main__":
 
     ps = []
     for pid, latent_path_sub in enumerate(list_latent_path_sub):
-        p = Process(target=run, args=(pid, latent_path_sub,))
+        p = Process(target=run, args=(pid, latent_path_sub, t_total, results))
         p.start()
         ps.append(p)
 
     print('>>>>>>>>>> PROCESS >>>>>>>>>>')
     [p.join() for p in ps]
     print('>>>>>>>>>> DONE >>>>>>>>>>')
-    t_acc = sum(time_queue.get())
-    total_res = {}
-    target_length = 0
-    for res in result_queue.get(): 
-        total_res.update(res)
-        target_length += len(res)
-    assert len(total_res) == target_length
+    t_acc = t_total.value
+    total_res = results
 
     print("Total search takes: ", t_acc)
     with open(os.path.join(save_path, "results33.pkl"), 'wb') as handle:
