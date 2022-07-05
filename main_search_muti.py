@@ -8,6 +8,7 @@ from database import HistoDatabase
 from tqdm import tqdm
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from multiprocessing import Process
 
 # Slides which are in poor quality
 IGNORE_SLIDES = ['TCGA-C5-A8YT-01Z-00-DX1.5609D977-4B7E-4B49-A3FB-50434D6E49F9',
