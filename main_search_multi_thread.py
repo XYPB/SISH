@@ -75,7 +75,7 @@ if __name__ == "__main__":
                         help="Path to the veb tree that stores all indices")
     parser.add_argument("--index_meta_path", type=str, required=True,
                         help="Path to the meta data of each index")
-    parser.add_argument("--codebook_semantic", type=str, default="/mnt/ceph_sz/private/scusenyang/data_tencent/MedIA_search/FISH/checkpoints/codebook_semantic.pt",
+    parser.add_argument("--codebook_semantic", type=str, default="./checkpoints/codebook_semantic.pt",
                         help="Path to the semantic codebook from vq-vae")
     args = parser.parse_args()
 

@@ -2,3 +2,5 @@ DATA
 DATABASES
 __pycache__
 checkpoints
+QUERY_RESULTS
+QUERY_SPEED
