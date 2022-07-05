@@ -108,7 +108,7 @@ DATA/LATENT/
 #### Step 5 Search the whole database
 Run the script below to get each query's results in the database.
 ```
-python main_search.py --site SITE --db_index_path ./DATABASES/SITE/index_tree/veb.pkl --index_meta_path ./DATABASES/SITE/index_meta/meta.pkl
+python main_search.py --site organ --db_index_path ./DATABASES/organ/index_tree/veb.pkl --index_meta_path ./DATABASES/organ/index_meta/meta.pkl
 ```
 
 It will store the results for each query and the time it takes in two separate folders, which are
