@@ -26,7 +26,7 @@ def run(pid, latent_path_list, t_total, results):
         anatomic_site = latent_path.split("/")[-5]
         slide_id = os.path.basename(latent_path).replace(".h5", "")
         if slide_id in IGNORE_SLIDES:
-            return 1
+            continue
         # Remove the current patient from the database for leave-one-patient out evaluation
         # Implement your own to fit your own to fit your data.
         if not slide_id.startswith('TCGA'):

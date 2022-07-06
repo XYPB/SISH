@@ -106,6 +106,17 @@ class HistoDatabase(object):
                 meta_tmp[key] = val_tmp
             self.meta_clean = meta_tmp
 
+    def query_slide_info(self, patch, dense_feat):
+        index = self.preprocessing(patch)
+        var = self.meta_clean[index]
+        idx = 0
+        for i in range(len(var)):
+            if var[i]['dense_binarized'] == dense_feat:
+                idx = i
+        index_meta = var[idx]
+        return [index, index_meta['slide_name'],
+                index_meta['diagnosis'], index_meta['site']]
+
     def query(self, patch, dense_feat,
               pre_step=375, succ_step=375,
               C=50, T=10, thrsh=128):
